@@ -14,6 +14,19 @@
 #include "../ui/utils/freeMemory.h"
 #include "../ui/utils/update_txt.h"
 
+typedef struct {
+    GtkWidget *entry;
+    GtkWidget *spin;
+    GtkWidget *entry_cmt;
+    GtkWidget *window;
+    CustomerData *data;
+} RateContext;
+
+void on_rate_submit(GtkButton *button, gpointer user_data);
+void showMessage(const gchar *message);
+
+
+
 void clear_grid_history(GtkGrid *grid_history) {
     GList *children = gtk_container_get_children(GTK_CONTAINER(grid_history));
     GList *l;
@@ -545,4 +558,124 @@ void historyCustomers(GtkWidget *widget, gpointer user_data)
     // Giải phóng bộ nhớ cho các struct khi tắt cửa sổ con
     g_signal_connect(historyCustomers_window, "destroy", G_CALLBACK(free_struct_and_iter_customer), findData);
     g_signal_connect(historyCustomers_window, "destroy", G_CALLBACK(free_memory_when_main_window_destroy), history_data);
+}   
+void on_rate_customer_clicked(GtkWidget *widget, gpointer user_data) {
+        CustomerData *data = (CustomerData *)user_data;
+    
+        // Tạo cửa sổ đánh giá
+        GtkWidget *rate_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        gtk_window_set_title(GTK_WINDOW(rate_window), "Đánh giá khách hàng");
+        gtk_window_set_transient_for(GTK_WINDOW(rate_window), GTK_WINDOW(data->main_window));
+        gtk_window_set_modal(GTK_WINDOW(rate_window), TRUE);
+        gtk_window_set_default_size(GTK_WINDOW(rate_window), 500, 300);
+        gtk_window_set_position(GTK_WINDOW(rate_window), GTK_WIN_POS_CENTER);
+    
+        // Box chính
+        GtkWidget *box_main = createBox(rate_window, GTK_ORIENTATION_VERTICAL, 10);
+    
+        // Box tìm kiếm mã KH
+        GtkWidget *box_search = createBox(box_main, GTK_ORIENTATION_HORIZONTAL, 10);
+        createLabel(box_search, "Nhập mã KH:");
+        GtkWidget *entry = createSearch(box_search);
+        gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Ví dụ: KH001");
+    
+        // Grid hiện thông tin khách hàng
+        GtkWidget *grid = gtk_grid_new();
+        gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
+        gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
+        gtk_box_pack_start(GTK_BOX(box_main), grid, TRUE, TRUE, 0);
+    
+        GtkWidget *id_label = gtk_label_new("Mã KH:");
+        GtkWidget *name_label = gtk_label_new("Tên KH:");
+        GtkWidget *phone_label = gtk_label_new("SĐT:");
+        gtk_grid_attach(GTK_GRID(grid), id_label, 0, 0, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), name_label, 0, 1, 1, 1);
+        gtk_grid_attach(GTK_GRID(grid), phone_label, 0, 2, 1, 1);
+    
+        // Gắn logic tìm kiếm KH
+        FindIterOfSearch *findData = g_new0(FindIterOfSearch, 1);
+        findData->list_store = data->store;
+        findData->search_column = 0;
+        findData->result_iter = g_new0(GtkTreeIter, 1);
+        findData->grid = grid;
+        g_signal_connect(entry, "changed", G_CALLBACK(search_in_liststore_customer), findData);
+
+
+
+    
+        // Box đánh giá điểm
+        GtkWidget *box_rating = createBox(box_main, GTK_ORIENTATION_HORIZONTAL, 10);
+        createLabel(box_rating, "Đánh giá dịch vụ:");
+        GtkWidget *spin = gtk_spin_button_new_with_range(1, 10, 1);
+        gtk_box_pack_start(GTK_BOX(box_rating), spin, FALSE, FALSE, 0);
+    
+        // Ô nhập nhận xét
+        GtkWidget *entry_cmt = gtk_entry_new();
+        gtk_entry_set_placeholder_text(GTK_ENTRY(entry_cmt), "Nhập nhận xét (tùy chọn)");
+        gtk_box_pack_start(GTK_BOX(box_main), entry_cmt, FALSE, FALSE, 0);
+    
+        // Nút gửi đánh giá
+        GtkWidget *submit_btn = createButton(box_main, "GỬI ĐÁNH GIÁ");
+    
+        // Gắn xử lý submit
+        struct {
+            GtkWidget *entry;
+            GtkWidget *spin;
+            GtkWidget *entry_cmt;
+            CustomerData *data;
+            GtkWidget *window;
+        } *context = g_new0(typeof(*context), 1);
+    
+        context->entry = entry;
+        context->spin = spin;
+        context->entry_cmt = entry_cmt;
+        context->data = data;
+        context->window = rate_window;
+    
+        g_signal_connect(submit_btn, "clicked", G_CALLBACK(on_rate_submit), context);
+    
+        // Nút quay lại
+        GtkWidget *box_back = createBox(box_main, GTK_ORIENTATION_VERTICAL, 5);
+        gtk_widget_set_halign(box_back, GTK_ALIGN_CENTER);
+        GtkWidget *back_btn = createButton(box_back, "QUAY LẠI");
+        g_signal_connect_swapped(back_btn, "clicked", G_CALLBACK(gtk_widget_destroy), rate_window);
+    
+        gtk_widget_show_all(rate_window);
+    
+        // Free memory
+        g_signal_connect(rate_window, "destroy", G_CALLBACK(free_struct_and_iter_customer), findData);
+   
+}
+void on_rate_submit(GtkButton *button, gpointer user_data) {
+    RateContext *context = (RateContext *)user_data;
+
+    const gchar *customer_id = gtk_entry_get_text(GTK_ENTRY(context->entry));
+    if (customer_id == NULL || strlen(customer_id) == 0) {
+        showMessage("Vui lòng nhập mã khách hàng.");
+        return;
+    }
+
+    int rating = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(context->spin));
+    const gchar *comment = gtk_entry_get_text(GTK_ENTRY(context->entry_cmt));
+    if (strlen(comment) == 0) {
+        comment = "Không có nhận xét";
+    }
+
+    FILE *f = fopen("ratings.txt", "a");
+    if (!f) {
+        showMessage("Không thể ghi file đánh giá.");
+        return;
+    }
+
+    fprintf(f, "%s|%d|%s\n", customer_id, rating, comment);
+    fclose(f);
+
+    showMessage("Gửi đánh giá thành công!");
+    gtk_widget_destroy(context->window);
+    g_free(context);
+}
+void showMessage(const gchar *message) {
+    GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", message);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
 }

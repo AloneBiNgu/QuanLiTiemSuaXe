@@ -9,6 +9,8 @@
 #include "../../modules/customers.h"
 #include "../../model/model_central.h"
 
+
+
 // Hàm tải nội dung từ file text vào Liststore
 void load_file_customer_txt_to_liststore(GtkListStore *store, const char *filename) {
     
@@ -147,6 +149,8 @@ GtkWidget *createCustomerPage(GtkWidget *notebook, GtkWidget *window, gpointer d
     GtkWidget *buttonXoaKhachHang = createButton(menuBoxForPageKhachHang, "Xóa khách hàng");
     GtkWidget *buttonSuaKhachHang = createButton(menuBoxForPageKhachHang, "Sửa khách hàng");
     GtkWidget *buttonLichSuKhachHang = createButton(menuBoxForPageKhachHang, "Lịch sử khách hàng");
+    GtkWidget *rateButton = createButton(menuBoxForPageKhachHang, "Đánh giá Dịch vụ");
+
 
     // Hiển thị danh sách khách hàng
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
@@ -181,6 +185,11 @@ GtkWidget *createCustomerPage(GtkWidget *notebook, GtkWidget *window, gpointer d
 
     // Handle "Lịch sử khách hàng" button
     g_signal_connect(buttonLichSuKhachHang, "clicked", G_CALLBACK(historyCustomers), user_data);
+
+    //Handle" đánh giá "
+    void on_rate_customer_clicked(GtkWidget *widget, gpointer user_data);
+    g_signal_connect(rateButton, "clicked", G_CALLBACK(on_rate_customer_clicked), data);
+
 
     // Giải phóng CustomerData khi dừng chương trình
     g_signal_connect(window, "destroy", G_CALLBACK(free_memory_when_main_window_destroy), user_data);
