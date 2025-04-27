@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <gtk/gtk.h>
+#include <string.h>
 #include "customers.h"
 #include "components/label.h"
 #include "components/box.h"
@@ -13,18 +14,6 @@
 #include "../ui/utils/search_in_model.h"
 #include "../ui/utils/freeMemory.h"
 #include "../ui/utils/update_txt.h"
-
-typedef struct {
-    GtkWidget *entry;
-    GtkWidget *spin;
-    GtkWidget *entry_cmt;
-    GtkWidget *window;
-    CustomerData *data;
-} RateContext;
-
-void on_rate_submit(GtkButton *button, gpointer user_data);
-void showMessage(const gchar *message);
-
 
 
 void clear_grid_history(GtkGrid *grid_history) {
@@ -559,123 +548,179 @@ void historyCustomers(GtkWidget *widget, gpointer user_data)
     g_signal_connect(historyCustomers_window, "destroy", G_CALLBACK(free_struct_and_iter_customer), findData);
     g_signal_connect(historyCustomers_window, "destroy", G_CALLBACK(free_memory_when_main_window_destroy), history_data);
 }   
+
+// Hàm xử lý khi nhấn nút "Gửi đánh giá"
+ void on_rate_customer_search(GtkWidget *button, gpointer user_data) {
+        GtkWidget *search_entry = GTK_WIDGET(g_object_get_data(G_OBJECT(button), "entry"));
+        const gchar *search_id = gtk_entry_get_text(GTK_ENTRY(search_entry));
+        CustomerData *data = (CustomerData *)g_object_get_data(G_OBJECT(button), "data");
+    
+        GtkTreeIter iter;
+        gboolean valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(data->store), &iter);
+    
+        while (valid) {
+            gchar *id, *name, *phone, *plate, *type;
+            gtk_tree_model_get(GTK_TREE_MODEL(data->store), &iter,
+                               0, &id,
+                               1, &name,
+                               2, &phone,
+                               3, &plate,
+                               4, &type,
+                               -1);
+    
+            if (g_strcmp0(id, search_id) == 0) {
+                gtk_label_set_text(GTK_LABEL(g_object_get_data(G_OBJECT(button), "id_label")), id);
+                gtk_label_set_text(GTK_LABEL(g_object_get_data(G_OBJECT(button), "name_label")), name);
+                gtk_label_set_text(GTK_LABEL(g_object_get_data(G_OBJECT(button), "phone_label")), phone);
+                gtk_label_set_text(GTK_LABEL(g_object_get_data(G_OBJECT(button), "plate_label")), plate);
+                gtk_label_set_text(GTK_LABEL(g_object_get_data(G_OBJECT(button), "type_label")), type);
+    
+                g_free(id);
+                g_free(name);
+                g_free(phone);
+                g_free(plate);
+                g_free(type);
+                return;
+            }
+    
+            g_free(id);
+            g_free(name);
+            g_free(phone);
+            g_free(plate);
+            g_free(type);
+    
+            valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(data->store), &iter);
+        }
+    
+        // Nếu không tìm thấy
+        showMessage("Không tìm thấy khách hàng!");}
+    
+    
+
 void on_rate_customer_clicked(GtkWidget *widget, gpointer user_data) {
-        CustomerData *data = (CustomerData *)user_data;
-    
-        // Tạo cửa sổ đánh giá
-        GtkWidget *rate_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_title(GTK_WINDOW(rate_window), "Đánh giá khách hàng");
-        gtk_window_set_transient_for(GTK_WINDOW(rate_window), GTK_WINDOW(data->main_window));
-        gtk_window_set_modal(GTK_WINDOW(rate_window), TRUE);
-        gtk_window_set_default_size(GTK_WINDOW(rate_window), 500, 300);
-        gtk_window_set_position(GTK_WINDOW(rate_window), GTK_WIN_POS_CENTER);
-    
-        // Box chính
-        GtkWidget *box_main = createBox(rate_window, GTK_ORIENTATION_VERTICAL, 10);
-    
-        // Box tìm kiếm mã KH
-        GtkWidget *box_search = createBox(box_main, GTK_ORIENTATION_HORIZONTAL, 10);
-        createLabel(box_search, "Nhập mã KH:");
-        GtkWidget *entry = createSearch(box_search);
-        gtk_entry_set_placeholder_text(GTK_ENTRY(entry), "Ví dụ: KH001");
-    
-        // Grid hiện thông tin khách hàng
-        GtkWidget *grid = gtk_grid_new();
-        gtk_grid_set_column_spacing(GTK_GRID(grid), 10);
-        gtk_grid_set_row_spacing(GTK_GRID(grid), 10);
-        gtk_box_pack_start(GTK_BOX(box_main), grid, TRUE, TRUE, 0);
-    
-        GtkWidget *id_label = gtk_label_new("Mã KH:");
-        GtkWidget *name_label = gtk_label_new("Tên KH:");
-        GtkWidget *phone_label = gtk_label_new("SĐT:");
-        gtk_grid_attach(GTK_GRID(grid), id_label, 0, 0, 1, 1);
-        gtk_grid_attach(GTK_GRID(grid), name_label, 0, 1, 1, 1);
-        gtk_grid_attach(GTK_GRID(grid), phone_label, 0, 2, 1, 1);
-    
-        // Gắn logic tìm kiếm KH
-        FindIterOfSearch *findData = g_new0(FindIterOfSearch, 1);
-        findData->list_store = data->store;
-        findData->search_column = 0;
-        findData->result_iter = g_new0(GtkTreeIter, 1);
-        findData->grid = grid;
-        g_signal_connect(entry, "changed", G_CALLBACK(search_in_liststore_customer), findData);
+    CustomerData *data = (CustomerData *)user_data;
 
+    // Tạo cửa sổ đánh giá
+    GtkWidget *rate_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(rate_window), "Đánh giá dịch vụ");
+    gtk_window_set_default_size(GTK_WINDOW(rate_window), 500, 400);
+    gtk_window_set_transient_for(GTK_WINDOW(rate_window), GTK_WINDOW(data->main_window));
+    gtk_window_set_modal(GTK_WINDOW(rate_window), TRUE);
 
+    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), 10);
+    gtk_container_add(GTK_CONTAINER(rate_window), vbox);
 
-    
-        // Box đánh giá điểm
-        GtkWidget *box_rating = createBox(box_main, GTK_ORIENTATION_HORIZONTAL, 10);
-        createLabel(box_rating, "Đánh giá dịch vụ:");
-        GtkWidget *spin = gtk_spin_button_new_with_range(1, 10, 1);
-        gtk_box_pack_start(GTK_BOX(box_rating), spin, FALSE, FALSE, 0);
-    
-        // Ô nhập nhận xét
-        GtkWidget *entry_cmt = gtk_entry_new();
-        gtk_entry_set_placeholder_text(GTK_ENTRY(entry_cmt), "Nhập nhận xét (tùy chọn)");
-        gtk_box_pack_start(GTK_BOX(box_main), entry_cmt, FALSE, FALSE, 0);
-    
-        // Nút gửi đánh giá
-        GtkWidget *submit_btn = createButton(box_main, "GỬI ĐÁNH GIÁ");
-    
-        // Gắn xử lý submit
-        struct {
-            GtkWidget *entry;
-            GtkWidget *spin;
-            GtkWidget *entry_cmt;
-            CustomerData *data;
-            GtkWidget *window;
-        } *context = g_new0(typeof(*context), 1);
-    
-        context->entry = entry;
-        context->spin = spin;
-        context->entry_cmt = entry_cmt;
-        context->data = data;
-        context->window = rate_window;
-    
-        g_signal_connect(submit_btn, "clicked", G_CALLBACK(on_rate_submit), context);
-    
-        // Nút quay lại
-        GtkWidget *box_back = createBox(box_main, GTK_ORIENTATION_VERTICAL, 5);
-        gtk_widget_set_halign(box_back, GTK_ALIGN_CENTER);
-        GtkWidget *back_btn = createButton(box_back, "QUAY LẠI");
-        g_signal_connect_swapped(back_btn, "clicked", G_CALLBACK(gtk_widget_destroy), rate_window);
-    
-        gtk_widget_show_all(rate_window);
-    
-        // Free memory
-        g_signal_connect(rate_window, "destroy", G_CALLBACK(free_struct_and_iter_customer), findData);
-   
+    // Thanh tìm kiếm
+    GtkWidget *search_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    GtkWidget *search_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(search_entry), "Nhập mã KH...");
+    GtkWidget *search_button = gtk_button_new_with_label("Tìm kiếm");
+    gtk_box_pack_start(GTK_BOX(search_box), search_entry, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(search_box), search_button, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), search_box, FALSE, FALSE, 0);
+
+    // Grid hiển thị thông tin khách hàng
+    GtkWidget *info_grid = gtk_grid_new();
+    gtk_grid_set_row_spacing(GTK_GRID(info_grid), 5);
+    gtk_grid_set_column_spacing(GTK_GRID(info_grid), 10);
+    gtk_box_pack_start(GTK_BOX(vbox), info_grid, FALSE, FALSE, 10);
+
+    GtkWidget *id_label = gtk_label_new("");
+    GtkWidget *name_label = gtk_label_new("");
+    GtkWidget *phone_label = gtk_label_new("");
+    GtkWidget *plate_label = gtk_label_new("");
+    GtkWidget *type_label = gtk_label_new("");
+
+    gtk_grid_attach(GTK_GRID(info_grid), gtk_label_new("Mã KH:"), 0, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), id_label, 1, 0, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), gtk_label_new("Tên KH:"), 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), name_label, 1, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), gtk_label_new("SĐT:"), 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), phone_label, 1, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), gtk_label_new("Biển số:"), 0, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), plate_label, 1, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), gtk_label_new("Loại xe:"), 0, 4, 1, 1);
+    gtk_grid_attach(GTK_GRID(info_grid), type_label, 1, 4, 1, 1);
+
+    // Thanh trượt đánh giá
+    GtkWidget *rating_scale = gtk_scale_new_with_range(GTK_ORIENTATION_HORIZONTAL, 0, 10, 1);
+    gtk_scale_set_digits(GTK_SCALE(rating_scale), 0);
+    gtk_scale_set_value_pos(GTK_SCALE(rating_scale), GTK_POS_TOP);
+
+    gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new("Đánh giá (0-10):"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), rating_scale, FALSE, FALSE, 0);
+
+    // Ô nhập nhận xét
+    GtkWidget *comment_entry = gtk_entry_new();
+    gtk_entry_set_placeholder_text(GTK_ENTRY(comment_entry), "Nhập nhận xét...");
+    gtk_box_pack_start(GTK_BOX(vbox), gtk_label_new("Nhận xét:"), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), comment_entry, FALSE, FALSE, 0);
+
+    // Nút gửi đánh giá
+    GtkWidget *submit_button = gtk_button_new_with_label("Gửi đánh giá");
+    gtk_box_pack_start(GTK_BOX(vbox), submit_button, FALSE, FALSE, 10);
+
+    // Tạo context để truyền dữ liệu cho callback
+    RateContext *ctx = g_malloc(sizeof(RateContext));
+    ctx->entry = search_entry;
+    ctx->scale = rating_scale;           // dùng scale thay vì spin
+    ctx->entry_cmt = comment_entry;
+    ctx->data = data;
+    ctx->window = rate_window;
+
+    // Gắn các label vào button để callback lấy lại
+    g_object_set_data(G_OBJECT(search_button), "id_label", id_label);
+    g_object_set_data(G_OBJECT(search_button), "name_label", name_label);
+    g_object_set_data(G_OBJECT(search_button), "phone_label", phone_label);
+    g_object_set_data(G_OBJECT(search_button), "plate_label", plate_label);
+    g_object_set_data(G_OBJECT(search_button), "type_label", type_label);
+    g_object_set_data(G_OBJECT(search_button), "entry", search_entry);
+    g_object_set_data(G_OBJECT(search_button), "data", data);
+
+    // Gán callback
+    g_signal_connect(search_button, "clicked", G_CALLBACK(on_rate_customer_search), NULL);
+    g_signal_connect(submit_button, "clicked", G_CALLBACK(on_rate_submit), ctx);
+
+    gtk_widget_show_all(rate_window);
 }
-void on_rate_submit(GtkButton *button, gpointer user_data) {
-    RateContext *context = (RateContext *)user_data;
 
-    const gchar *customer_id = gtk_entry_get_text(GTK_ENTRY(context->entry));
-    if (customer_id == NULL || strlen(customer_id) == 0) {
-        showMessage("Vui lòng nhập mã khách hàng.");
+void on_rate_submit(GtkWidget *button, gpointer user_data) {
+    RateContext *ctx = (RateContext *)user_data;
+
+    const gchar *id = gtk_entry_get_text(GTK_ENTRY(ctx->entry));
+    gint rating = (gint)gtk_range_get_value(GTK_RANGE(ctx->scale));
+    const gchar *comment = gtk_entry_get_text(GTK_ENTRY(ctx->entry_cmt));
+
+    if (id == NULL || g_strcmp0(id, "") == 0) {
+        showMessage("Vui lòng nhập mã khách hàng!");
         return;
     }
 
-    int rating = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(context->spin));
-    const gchar *comment = gtk_entry_get_text(GTK_ENTRY(context->entry_cmt));
-    if (strlen(comment) == 0) {
-        comment = "Không có nhận xét";
-    }
-
-    FILE *f = fopen("ratings.txt", "a");
-    if (!f) {
-        showMessage("Không thể ghi file đánh giá.");
+    if (g_strcmp0(comment, "") == 0) {
+        showMessage("Vui lòng nhập nhận xét!");
         return;
     }
 
-    fprintf(f, "%s|%d|%s\n", customer_id, rating, comment);
-    fclose(f);
+    // TODO: Ghi thông tin đánh giá vào cơ sở dữ liệu hoặc file
+    g_print("Mã KH: %s\n", id);
+    g_print("Điểm: %d\n", rating);
+    g_print("Nhận xét: %s\n", comment);
 
-    showMessage("Gửi đánh giá thành công!");
-    gtk_widget_destroy(context->window);
-    g_free(context);
+    showMessage("Đánh giá đã được gửi. Cảm ơn bạn!");
+
+    gtk_widget_destroy(ctx->window);
+    g_free(ctx);
 }
+
 void showMessage(const gchar *message) {
-    GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_INFO, GTK_BUTTONS_OK, "%s", message);
+    GtkWidget *dialog = gtk_message_dialog_new(NULL,
+                                                GTK_DIALOG_MODAL,
+                                                GTK_MESSAGE_INFO,
+                                                GTK_BUTTONS_OK,
+                                                "%s", message);
+    gtk_window_set_title(GTK_WINDOW(dialog), "Thông báo");
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
 }
+

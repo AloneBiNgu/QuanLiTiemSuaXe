@@ -41,6 +41,9 @@ typedef struct
     GtkWidget *numberphone_label;
     GtkWidget *numberplate_label;
     GtkWidget *cartype_label;
+    GtkWidget *rating_scale;
+    GtkWidget *rate_window;
+    GtkWidget *main_window;
 } FindIterOfSearch;
 
 typedef struct {
@@ -50,7 +53,19 @@ typedef struct {
     GtkWidget *entry;
 } HistoryData;
 
+typedef struct {
+    GtkWidget *entry;       // Entry để nhập mã KH
+    GtkWidget *scale;       // Thanh trượt đánh giá
+    GtkWidget *entry_cmt;   // Ô nhập nhận xét
+    CustomerData *data;     // Dữ liệu store
+    GtkWidget *window;      // Cửa sổ đánh giá
+} RateContext;
 
+
+void on_rate_customer_clicked(GtkWidget *widget, gpointer user_data);
+void on_rate_submit(GtkWidget *button, gpointer user_data);
+void on_rate_search_clicked(GtkButton *button, gpointer user_data);
+void showMessage(const gchar *message);
 void addCustomers(GtkWidget *widget, gpointer user_data);
 static void addData(GtkListStore *store, const char *filename, ...);
 void deleteCustomers(GtkWidget *widget, gpointer user_data);

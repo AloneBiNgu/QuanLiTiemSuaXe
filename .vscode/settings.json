@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "search_in_model.h": "c"
+        "search_in_model.h": "c",
+        "search.h": "c"
     }
 }
