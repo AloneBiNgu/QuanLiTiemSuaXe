@@ -145,6 +145,109 @@ void populate_stats_tree_store(GtkTreeStore *store, GtkListStore *billingList, G
     g_hash_table_destroy(day_hash);
 }
 
+static gboolean draw_column_chart(GtkWidget *widget, cairo_t *cr, gpointer user_data) {
+    GtkTreeStore *store = (GtkTreeStore *)user_data;
+    int width, height;
+    gtk_widget_get_size_request(widget, &width, &height);
+
+    int padding = 70;    // Khoảng cách biên
+    int bar_width = 60;  // Chiều rộng cột
+    int spacing = 30;    // Khoảng cách giữa các cột
+
+    // Tính doanh thu cao nhất
+    gdouble max_revenue = 0;
+    GtkTreeIter iter;
+    gboolean valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(store), &iter);
+    while (valid) {
+        gchar *time_label;
+        gint car_count;
+        gdouble revenue;
+        gtk_tree_model_get(GTK_TREE_MODEL(store), &iter, 0, &time_label, 1, &car_count, 2, &revenue, -1);
+        if (revenue > max_revenue) {
+            max_revenue = revenue;
+        }
+        valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(store), &iter);
+    }
+
+    if (max_revenue == 0) max_revenue = 1; // Tránh chia cho 0
+
+  // Vẽ tiêu đề
+cairo_set_source_rgb(cr, 0, 0, 0); // Chọn màu vẽ là màu đen (RGB: 0, 0, 0)
+cairo_select_font_face(cr, "Arial", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD); // Chọn kiểu font là Arial, không in nghiêng, đậm
+cairo_set_font_size(cr, 21); // Thiết lập kích thước font là 20
+cairo_move_to(cr, width / 2 - 150, padding - 30); // Di chuyển điểm bắt đầu vẽ văn bản tới vị trí (width / 2 - 150, padding - 30)
+cairo_show_text(cr, "BIỂU ĐỒ MIÊU TẢ DOANH THU THEO NĂM"); // Vẽ văn bản "BIỂU ĐỒ MIÊU TẢ DOANH THU THEO NĂM"
+
+
+    // Vẽ trục tung
+    cairo_set_source_rgb(cr, 0, 0, 0);
+    cairo_move_to(cr, padding, padding);
+    cairo_line_to(cr, padding, height - padding);
+    cairo_stroke(cr);
+
+    // Chia trục tung mỗi 500k
+    gdouble tick_value = 500000.0; // 500k
+    int num_ticks = (int)(max_revenue / tick_value) + 1;
+
+    cairo_set_font_size(cr, 12); // Cỡ chữ nhỏ cho trục tung
+
+    for (int i = 0; i <= num_ticks; i++) {
+        gdouble value = i * tick_value;
+        int y_pos = height - padding - (int)((value / max_revenue) * (height - 2 * padding));
+
+        // Vẽ vạch nhỏ
+        cairo_move_to(cr, padding - 5, y_pos);
+        cairo_line_to(cr, padding + 5, y_pos);
+        cairo_stroke(cr);
+
+        // Tạo nhãn theo dạng "500k", "1M", "1.5M", "2M", ...
+        gchar *label = NULL;
+        if (value < 1000000) {
+            // Dưới 1 triệu: hiển thị 500k, 1M, ...
+            int thousands = (int)(value / 1000);
+            label = g_strdup_printf("%dk", thousands);
+        } else {
+            // Từ 1 triệu trở lên: hiển thị 1M, 1.5M, ...
+            gdouble millions = value / 1000000.0;
+            label = g_strdup_printf("%.1fM", millions);
+        }
+
+        cairo_move_to(cr, padding - 45, y_pos + 5);
+        cairo_show_text(cr, label);
+        g_free(label);
+    }
+
+    // Vẽ các cột
+    int x_offset = padding + 20; // Dời ra phải chút cho đẹp
+    valid = gtk_tree_model_get_iter_first(GTK_TREE_MODEL(store), &iter);
+    while (valid) {
+        gchar *time_label;
+        gint car_count;
+        gdouble revenue;
+        gtk_tree_model_get(GTK_TREE_MODEL(store), &iter, 0, &time_label, 1, &car_count, 2, &revenue, -1);
+
+        // Tính chiều cao cột
+        int bar_height = (int)(revenue / max_revenue * (height - 2 * padding));
+
+        // Vẽ cột
+        cairo_set_source_rgb(cr, 0.2, 0.6, 0.2); // Xanh lá
+        cairo_rectangle(cr, x_offset, height - padding - bar_height, bar_width, bar_height);
+        cairo_fill(cr);
+
+        // Ghi nhãn thời gian dưới cột
+        cairo_set_source_rgb(cr, 0, 0, 0);
+        cairo_move_to(cr, x_offset + (bar_width / 2) - 20, height - padding + 20);
+        cairo_show_text(cr, time_label);
+
+        x_offset += bar_width + spacing;
+        valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(store), &iter);
+    }
+
+    return FALSE;
+}
+
+
+
 GtkWidget *createStatisticalPage(GtkWidget *notebook, GtkWidget *window, gpointer user_data) {
     GtkWidget *page = createPage(notebook, GTK_ORIENTATION_VERTICAL, 10, "Thống kê & Báo cáo");
 
@@ -157,17 +260,29 @@ GtkWidget *createStatisticalPage(GtkWidget *notebook, GtkWidget *window, gpointe
     populate_stats_tree_store(store, data->billingList, data->serviceList);
 
     GtkWidget *scrolled_window = gtk_scrolled_window_new(NULL, NULL);
-
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled_window),
-                                GTK_POLICY_NEVER,
-                                GTK_POLICY_ALWAYS);
+                                   GTK_POLICY_NEVER,
+                                   GTK_POLICY_ALWAYS);
     gtk_container_add(GTK_CONTAINER(page), scrolled_window);
 
     GtkWidget *statsTreeView = createTreeView(scrolled_window);
-
     const gchar *columnNames[] = {"Thời gian", "Số xe sửa chữa", "Doanh thu (VND)"};
     createColumns(statsTreeView, columnNames, 3);
     gtk_tree_view_set_model(GTK_TREE_VIEW(statsTreeView), GTK_TREE_MODEL(store));
 
+    // Tạo GtkDrawingArea cho biểu đồ cột
+    GtkWidget *chart_area = gtk_drawing_area_new();
+    gtk_widget_set_size_request(chart_area, 600, 400); // Phóng to biểu đồ
+    gtk_container_add(GTK_CONTAINER(page), chart_area);
+
+    // Kết nối tín hiệu vẽ cho biểu đồ cột
+    g_signal_connect(G_OBJECT(chart_area), "draw", G_CALLBACK(draw_column_chart), store);
+
+    // Căn giữa biểu đồ trong page
+    gtk_widget_set_halign(chart_area, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign(chart_area, GTK_ALIGN_CENTER);
+
     return page;
 }
+
+
