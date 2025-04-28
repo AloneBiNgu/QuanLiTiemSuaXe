@@ -181,7 +181,7 @@ cairo_show_text(cr, "BIỂU ĐỒ MIÊU TẢ DOANH THU THEO NĂM"); // Vẽ văn
 
     // Vẽ trục tung
     cairo_set_source_rgb(cr, 0, 0, 0);
-    cairo_move_to(cr, padding, padding);
+    cairo_move_to(cr, padding, padding - 34);
     cairo_line_to(cr, padding, height - padding);
     cairo_stroke(cr);
 
@@ -234,18 +234,26 @@ cairo_show_text(cr, "BIỂU ĐỒ MIÊU TẢ DOANH THU THEO NĂM"); // Vẽ văn
         cairo_rectangle(cr, x_offset, height - padding - bar_height, bar_width, bar_height);
         cairo_fill(cr);
 
-        // Ghi nhãn thời gian dưới cột
-        cairo_set_source_rgb(cr, 0, 0, 0);
-        cairo_move_to(cr, x_offset + (bar_width / 2) - 20, height - padding + 20);
+                // Đặt font và kích thước chữ
+        cairo_select_font_face(cr, "Arial", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD); // Chọn font Arial, kiểu chữ thường, đậm
+        cairo_set_font_size(cr, 15);  // Thay đổi kích thước font
+
+        cairo_set_source_rgb(cr, 0, 0, 0);  // Màu đen cho chữ
+
+        // Di chuyển và ghi nhãn thời gian dưới cột
+        cairo_move_to(cr, x_offset + (bar_width / 2) - 15, height - padding + 30); // Di chuyển nhãn thấp hơn một chút
         cairo_show_text(cr, time_label);
 
+        // Cập nhật x_offset để tiếp tục vẽ các cột tiếp theo
         x_offset += bar_width + spacing;
+
+        // Di chuyển đến phần tử tiếp theo trong TreeStore
         valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(store), &iter);
-    }
+
+            }
 
     return FALSE;
 }
-
 
 
 GtkWidget *createStatisticalPage(GtkWidget *notebook, GtkWidget *window, gpointer user_data) {
